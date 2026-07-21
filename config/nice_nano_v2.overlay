@@ -1,0 +1,7 @@
+/*
+ * The Corne LED chain per half: 6 underglow LEDs first, then 21 per-key LEDs.
+ * The stock shield only drives 10, so the per-key LEDs never light up.
+ */
+&led_strip {
+    chain-length = <27>;
+};
