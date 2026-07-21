@@ -12,6 +12,15 @@
 #include <dt-bindings/zmk/rgb.h>
 #include <dt-bindings/zmk/outputs.h>
 
+/*
+ * The Corne LED chain per half: 6 underglow LEDs first, then 21 per-key LEDs.
+ * The stock shield only drives 10, so the per-key LEDs never light up.
+ * This lives in the keymap because it is the last devicetree overlay applied.
+ */
+&led_strip {
+    chain-length = <27>;
+};
+
 / {
         keymap {
                 compatible = "zmk,keymap";
