@@ -17,7 +17,7 @@ from PIL import Image, ImageDraw, ImageFont
 SCREEN_W, SCREEN_H = 128, 32
 EMBLEM = 32
 SS = 8  # supersampling factor
-ROTATE = 90  # degrees CCW; flip to 270 if it reads upside down on the OLED
+ROTATE = 270  # degrees CCW; the OLED needs the emblem this way to read upright
 
 FONTS = [
     "/System/Library/Fonts/Supplemental/Arial Black.ttf",
@@ -76,7 +76,7 @@ def to_bitmap():
 
 
 def emit(bitmap, name):
-    data = bytearray([0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
+    data = bytearray([0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF])
     for row in bitmap:
         for byte_start in range(0, SCREEN_W, 8):
             byte = 0

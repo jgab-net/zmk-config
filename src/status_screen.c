@@ -5,6 +5,7 @@
  * Right (peripheral): the Rocco Offroad emblem.
  */
 
+#include <string.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
@@ -67,7 +68,7 @@ ZMK_DISPLAY_WIDGET_LISTENER(bongo_cat, struct bongo_state, bongo_update_cb, bong
 ZMK_SUBSCRIPTION(bongo_cat, zmk_position_state_changed);
 ZMK_SUBSCRIPTION(bongo_cat, zmk_wpm_state_changed);
 
-/* Compact layer indicator: just "L<n>", smaller than the stock name widget. */
+/* Compact layer indicator: the keymap's display-name, no icon prefix. */
 static lv_obj_t *layer_label;
 
 struct layer_num_state {
@@ -82,9 +83,14 @@ static void layer_num_update_cb(struct layer_num_state state) {
     if (layer_label == NULL) {
         return;
     }
-    char text[4];
-    snprintf(text, sizeof(text), "L%u", state.index);
-    lv_label_set_text(layer_label, text);
+    const char *name = zmk_keymap_layer_name(zmk_keymap_layer_index_to_id(state.index));
+    if (name != NULL && strlen(name) > 0) {
+        lv_label_set_text(layer_label, name);
+    } else {
+        char text[4];
+        snprintf(text, sizeof(text), "L%u", state.index);
+        lv_label_set_text(layer_label, text);
+    }
 }
 
 ZMK_DISPLAY_WIDGET_LISTENER(layer_num, struct layer_num_state, layer_num_update_cb,
@@ -115,9 +121,18 @@ lv_obj_t *zmk_display_status_screen() {
     return screen;
 }
 
-#else /* peripheral: right half shows the Rocco emblem */
+#else /* peripheral: right half shows the Rocco emblem plus battery and link */
 
 #include "rocco_logo.h"
+
+#if IS_ENABLED(CONFIG_ZMK_WIDGET_BATTERY_STATUS)
+#include <zmk/display/widgets/battery_status.h>
+static struct zmk_widget_battery_status battery_widget;
+#endif
+#if IS_ENABLED(CONFIG_ZMK_WIDGET_PERIPHERAL_STATUS)
+#include <zmk/display/widgets/peripheral_status.h>
+static struct zmk_widget_peripheral_status peripheral_widget;
+#endif
 
 lv_obj_t *zmk_display_status_screen() {
     lv_obj_t *screen = lv_obj_create(NULL);
@@ -125,6 +140,16 @@ lv_obj_t *zmk_display_status_screen() {
     lv_obj_t *logo = lv_img_create(screen);
     lv_img_set_src(logo, &rocco_logo);
     lv_obj_align(logo, LV_ALIGN_CENTER, 0, 0);
+
+#if IS_ENABLED(CONFIG_ZMK_WIDGET_BATTERY_STATUS)
+    zmk_widget_battery_status_init(&battery_widget, screen);
+    lv_obj_align(zmk_widget_battery_status_obj(&battery_widget), LV_ALIGN_TOP_LEFT, 0, 0);
+#endif
+#if IS_ENABLED(CONFIG_ZMK_WIDGET_PERIPHERAL_STATUS)
+    zmk_widget_peripheral_status_init(&peripheral_widget, screen);
+    lv_obj_align(zmk_widget_peripheral_status_obj(&peripheral_widget), LV_ALIGN_BOTTOM_RIGHT, 0,
+                 0);
+#endif
 
     return screen;
 }

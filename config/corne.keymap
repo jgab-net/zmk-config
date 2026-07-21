@@ -72,7 +72,7 @@
                 };
 
                 adjust_layer {
-                        display-name = "ADJ";
+                        display-name = "SET";
 // -----------------------------------------------------------------------------------------
 // | BOOT   |      |      |      |     |     |   | BTCLR | BT0 | BT1 | BT2   | BT3   | BT4 |
 // | RGBTOG | HUI  | SAI  | BRI  |     |     |   | OUT_T | USB | BLE | EP_ON |       |     |

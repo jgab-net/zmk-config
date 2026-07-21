@@ -93,7 +93,7 @@ def cat(paw_left_down, paw_right_down):
 
 
 def emit(bitmap, name):
-    data = bytearray([0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
+    data = bytearray([0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF])
     for row in bitmap:
         for byte_start in range(0, W, 8):
             byte = 0
