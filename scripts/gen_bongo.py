@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Generate simplified bongo-cat frames as an LVGL 1-bit image header.
+"""Generate bongo-cat frames as an LVGL 1-bit image header.
 
-Three 48x32 frames: idle (paws up), left paw tapping, right paw tapping.
-The art is drawn procedurally so it can be tweaked via the constants below.
+Solid-silhouette style: filled white cat with carved dark features, which reads
+far better on a 1-bit OLED than outlines. Three 48x32 frames: idle (paws up),
+left paw tapping, right paw tapping.
 
 Usage: gen_bongo.py <output.h>
 """
-import math
 import sys
 
 W, H = 48, 32
@@ -16,53 +16,79 @@ def blank():
     return [[0] * W for _ in range(H)]
 
 
-def set_px(g, x, y):
+def px(g, x, y, v=1):
     if 0 <= x < W and 0 <= y < H:
-        g[int(y)][int(x)] = 1
+        g[int(y)][int(x)] = v
 
 
-def line(g, x0, y0, x1, y1):
-    steps = max(abs(x1 - x0), abs(y1 - y0), 1)
-    for i in range(int(steps) + 1):
-        t = i / steps
-        set_px(g, round(x0 + (x1 - x0) * t), round(y0 + (y1 - y0) * t))
+def fill_ellipse(g, cx, cy, rx, ry, v=1):
+    for y in range(int(cy - ry), int(cy + ry) + 1):
+        for x in range(int(cx - rx), int(cx + rx) + 1):
+            if ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1.0:
+                px(g, x, y, v)
 
 
-def ellipse(g, cx, cy, rx, ry, a0=0.0, a1=2 * math.pi):
-    steps = int(20 * max(rx, ry))
-    for i in range(steps + 1):
-        a = a0 + (a1 - a0) * i / steps
-        set_px(g, round(cx + rx * math.cos(a)), round(cy + ry * math.sin(a)))
+def fill_circle(g, cx, cy, r, v=1):
+    fill_ellipse(g, cx, cy, r, r, v)
 
 
-def blob(g, cx, cy, r):
-    for y in range(int(cy - r), int(cy + r) + 1):
-        for x in range(int(cx - r), int(cx + r) + 1):
-            if (x - cx) ** 2 + (y - cy) ** 2 <= r * r:
-                set_px(g, x, y)
+def fill_triangle(g, p0, p1, p2, v=1):
+    xs = [p[0] for p in (p0, p1, p2)]
+    ys = [p[1] for p in (p0, p1, p2)]
+    for y in range(max(0, min(ys)), min(H - 1, max(ys)) + 1):
+        for x in range(max(0, min(xs)), min(W - 1, max(xs)) + 1):
+            d1 = (x - p1[0]) * (p0[1] - p1[1]) - (p0[0] - p1[0]) * (y - p1[1])
+            d2 = (x - p2[0]) * (p1[1] - p2[1]) - (p1[0] - p2[0]) * (y - p2[1])
+            d3 = (x - p0[0]) * (p2[1] - p0[1]) - (p2[0] - p0[0]) * (y - p0[1])
+            neg = d1 < 0 or d2 < 0 or d3 < 0
+            pos = d1 > 0 or d2 > 0 or d3 > 0
+            if not (neg and pos):
+                px(g, x, y, v)
+
+
+def hline(g, x0, x1, y, v=1):
+    for x in range(x0, x1 + 1):
+        px(g, x, y, v)
 
 
 def cat(paw_left_down, paw_right_down):
     g = blank()
-    # Head: wide ellipse, right of center
-    ellipse(g, 30, 13, 16, 10)
-    # Ears: two triangles poking above the head
-    line(g, 18, 6, 21, 0); line(g, 21, 0, 26, 4)
-    line(g, 35, 3, 40, 0); line(g, 40, 0, 43, 5)
-    # Eyes and mouth
-    blob(g, 25, 12, 1); blob(g, 36, 12, 1)
-    set_px(g, 29, 16); set_px(g, 30, 17); set_px(g, 31, 16); set_px(g, 32, 17); set_px(g, 33, 16)
-    # Table edge, bottom-left
-    line(g, 0, 22, 20, 32)
-    # Paws: blobs either raised near the head or planted on the table
+
+    # Ears (filled triangles), then the head (filled ellipse) on top
+    fill_triangle(g, (17, 8), (21, 0), (27, 5))
+    fill_triangle(g, (34, 5), (40, 0), (44, 8))
+    fill_ellipse(g, 31, 15, 16, 12)
+
+    # Face carved out in black: closed happy eyes and a small mouth
+    hline(g, 23, 26, 13, 0)
+    px(g, 23, 12, 0); px(g, 26, 12, 0)
+    hline(g, 36, 39, 13, 0)
+    px(g, 36, 12, 0); px(g, 39, 12, 0)
+    hline(g, 29, 30, 18, 0)
+    hline(g, 32, 33, 18, 0)
+    px(g, 31, 17, 0)
+
+    # Table: two-pixel edge along the bottom
+    hline(g, 0, W - 1, 29)
+    hline(g, 0, W - 1, 30)
+
+    # Paws: filled circles with a dark outline ring so they stay readable when
+    # they overlap the head or the table. Either raised or slamming down.
+    def paw(cx, cy):
+        fill_circle(g, cx, cy, 5, 0)
+        fill_circle(g, cx, cy, 4)
+
     if paw_left_down:
-        blob(g, 5, 26, 3)
+        paw(7, 26)
+        hline(g, 2, 4, 20, 1)  # motion tick
     else:
-        blob(g, 9, 17, 3)
+        paw(8, 19)
     if paw_right_down:
-        blob(g, 15, 30, 3)
+        paw(17, 26)
+        hline(g, 12, 14, 20, 1)  # motion tick
     else:
-        blob(g, 18, 21, 3)
+        paw(18, 23)
+
     return g
 
 

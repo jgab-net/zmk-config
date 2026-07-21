@@ -16,18 +16,18 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #include <zmk/display/widgets/battery_status.h>
 #include <zmk/display/widgets/output_status.h>
-#include <zmk/display/widgets/layer_status.h>
 #include <zmk/display/widgets/wpm_status.h>
 #include <zmk/event_manager.h>
 #include <zmk/events/position_state_changed.h>
+#include <zmk/events/layer_state_changed.h>
 #include <zmk/events/wpm_state_changed.h>
+#include <zmk/keymap.h>
 #include <zmk/wpm.h>
 
 #include "bongo_frames.h"
 
 static struct zmk_widget_battery_status battery_widget;
 static struct zmk_widget_output_status output_widget;
-static struct zmk_widget_layer_status layer_widget;
 static struct zmk_widget_wpm_status wpm_widget;
 
 static lv_obj_t *bongo_img;
@@ -67,6 +67,30 @@ ZMK_DISPLAY_WIDGET_LISTENER(bongo_cat, struct bongo_state, bongo_update_cb, bong
 ZMK_SUBSCRIPTION(bongo_cat, zmk_position_state_changed);
 ZMK_SUBSCRIPTION(bongo_cat, zmk_wpm_state_changed);
 
+/* Compact layer indicator: just "L<n>", smaller than the stock name widget. */
+static lv_obj_t *layer_label;
+
+struct layer_num_state {
+    uint8_t index;
+};
+
+static struct layer_num_state layer_num_get_state(const zmk_event_t *eh) {
+    return (struct layer_num_state){.index = zmk_keymap_highest_layer_active()};
+}
+
+static void layer_num_update_cb(struct layer_num_state state) {
+    if (layer_label == NULL) {
+        return;
+    }
+    char text[4];
+    snprintf(text, sizeof(text), "L%u", state.index);
+    lv_label_set_text(layer_label, text);
+}
+
+ZMK_DISPLAY_WIDGET_LISTENER(layer_num, struct layer_num_state, layer_num_update_cb,
+                            layer_num_get_state)
+ZMK_SUBSCRIPTION(layer_num, zmk_layer_state_changed);
+
 lv_obj_t *zmk_display_status_screen() {
     lv_obj_t *screen = lv_obj_create(NULL);
 
@@ -81,8 +105,9 @@ lv_obj_t *zmk_display_status_screen() {
     zmk_widget_output_status_init(&output_widget, screen);
     lv_obj_align(zmk_widget_output_status_obj(&output_widget), LV_ALIGN_TOP_LEFT, 52, 0);
 
-    zmk_widget_layer_status_init(&layer_widget, screen);
-    lv_obj_align(zmk_widget_layer_status_obj(&layer_widget), LV_ALIGN_BOTTOM_LEFT, 52, 0);
+    layer_label = lv_label_create(screen);
+    lv_obj_align(layer_label, LV_ALIGN_BOTTOM_LEFT, 52, 0);
+    layer_num_init();
 
     /* The WPM widget re-aligns itself to the bottom right on every update. */
     zmk_widget_wpm_status_init(&wpm_widget, screen);
